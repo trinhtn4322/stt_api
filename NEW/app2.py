@@ -35,55 +35,37 @@ def transcribe_audio():
     file = request.files['ok']
     logging.debug(f"Received file: {file.filename}")
 
-    if not file.filename.lower().endswith('.mp3'):
+    allowed_extensions = {'mp3', 'wav', 'flac', 'ogg', 'm4a', 'wma'}
+    if not any(file.filename.lower().endswith(ext) for ext in allowed_extensions):
         logging.debug("Invalid file format")
-        return jsonify({"error": "Invalid file format. Only MP3 files are accepted."}), 400
+        return jsonify({"error": "Invalid file format. Only audio files are accepted."}), 400
 
-    file_path = "uploaded_audio.mp3"
-    wav_file_path = "uploaded_audio.wav"
+    file_path = f"uploaded_audio{os.path.splitext(file.filename)[1]}"
     logging.debug(f"Saving file to {file_path}")
     file.save(file_path)
 
+
     try:
-        logging.debug("Converting MP3 to WAV...")
-        result = subprocess.run(["ffmpeg", "-i", file_path, wav_file_path], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        if result.returncode != 0:
-            logging.error(f"FFmpeg conversion error: {result.stderr.decode()}")
-            return jsonify({"error": f"FFmpeg conversion error: {result.stderr.decode()}"}), 500
+ 
+        with open(file_path, "rb") as audio_file:
+            transcription = transcribe(audio_file.read())  
 
-        logging.debug("Loading audio file and transcribing...")
-        audio = AudioSegment.from_file(wav_file_path, format="wav")
-
-        # Convert AudioSegment to byte array
-        audio_bytes = io.BytesIO()
-        audio.export(audio_bytes, format="wav")
-        audio_bytes.seek(0)
-
-        transcription = transcribe(audio_bytes)  # Custom transcribe function should be defined
         logging.debug(f"Transcription result: {transcription}")
-        os.remove(file_path)
-        os.remove(wav_file_path)
-        logging.debug("Files removed after processing")
 
-        return send_file(audio_bytes, attachment_filename="transcribed_audio.wav", as_attachment=True), 200
+        return jsonify({"transcription": transcription}), 200
 
     except Exception as e:
         logging.error(f"Error processing file: {str(e)}")
-        if os.path.exists(file_path):
-            os.remove(file_path)
-        if os.path.exists(wav_file_path):
-            os.remove(wav_file_path)
         return jsonify({"error": str(e)}), 500
 
 
 
 def transcribe(audio):
-    print("okkkkkkkkkkkkkkkkkkkkkkkkkkkk",audio)
     logging.debug("Transcribing audio")
     transcriber = pipeline("automatic-speech-recognition", model="vinai/PhoWhisper-large", device="cpu")
 
     transcript=transcriber(audio)
-    return transcript
+    return transcript["text"]
 
 if __name__ == "__main__":
     logging.debug("Starting Flask application...")

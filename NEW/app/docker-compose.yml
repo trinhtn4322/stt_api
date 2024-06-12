@@ -1,0 +1,14 @@
+version: '3.8'
+
+services:
+  flask-app:
+    build: .
+    image: trinhtn4322/speech-to-text-techfis:latest
+    ports:
+      - "5000:5000"
+    volumes:
+      - .:/app
+    environment:
+      FLASK_APP: app.py
+      FLASK_RUN_HOST: 0.0.0.0
+      FLASK_RUN_PORT: 5000

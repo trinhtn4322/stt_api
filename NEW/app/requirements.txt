@@ -1,0 +1,5 @@
+flask
+pydub
+transformers
+torch
+pytorch
